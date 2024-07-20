@@ -1,0 +1,5 @@
+com/task/service/DataService.class
+com/task/service/MetricsService.class
+com/task/controller/StockAnalysisController.class
+com/task/StockAnalysisApplication.class
+com/task/model/StockData.class
