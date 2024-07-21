@@ -52,6 +52,7 @@ public class DataService {
     }
 
     private double parseDouble(String value) {
+        // function to parse the double values while checking for errors
         try {
             return Double.parseDouble(value);
         } catch (NumberFormatException e) {
@@ -61,6 +62,7 @@ public class DataService {
     }
 
     private int parseInt(String value) {
+        // function to parse the integer values while checking for errors
         try {
             return Integer.parseInt(value);
         } catch (NumberFormatException e) {
@@ -78,6 +80,7 @@ public class DataService {
     public List<StockData> filterAuctionPeriods(List<StockData> data) {
         return data.stream()
                 .filter(d -> !isAuctionPeriod(d))
+                .filter(d -> d.getUpdateType() == 1)
                 .collect(Collectors.toList());
     }
 
@@ -90,8 +93,7 @@ public class DataService {
     private boolean isAuctionPeriod(StockData data) {
         // Implement the logic to determine if the data entry is within an auction period
         // This can be based on specific condition codes and crossed spreads
-        // Example condition codes for auctions might be "AU" or similar; adjust as needed
-        return data.getConditionCodes().equals("AU") || data.getBidPrice() > data.getAskPrice();
+        return data.getTimeInSecondsPastMidnight() >= 32400.0 && data.getTimeInSecondsPastMidnight() <= 61200.0|| data.getBidPrice() > data.getAskPrice();
     }
 
     /**

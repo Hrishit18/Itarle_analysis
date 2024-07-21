@@ -1,10 +1,12 @@
 package com.task.service;
 
+import com.opencsv.CSVWriter;
 import com.opencsv.exceptions.CsvException;
 import com.task.model.StockData;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -17,6 +19,16 @@ public class MetricsService {
 
     @Autowired
     private DataService dataService;
+
+    private List<String[]> metricsData;
+
+    public MetricsService() {
+        this.metricsData = new ArrayList<>();
+        // Add CSV header
+        this.metricsData.add(new String[]{
+                "Stock Code", "Metric", "Value"
+        });
+    }
 
     /**
      * Calculates and prints all required metrics for the given CSV file.
@@ -40,21 +52,23 @@ public class MetricsService {
             String stockCode = entry.getKey();
             List<StockData> stockData = entry.getValue();
 
-            System.out.println("Metrics for stock: " + stockCode);
-            calculateMeanTimeBetweenTrades(stockData);
-            calculateMedianTimeBetweenTrades(stockData);
-            calculateLongestTimeBetweenTrades(stockData);
-            calculateMeanTimeBetweenTickChanges(stockData);
-            calculateMedianTimeBetweenTickChanges(stockData);
-            calculateLongestTimeBetweenTickChanges(stockData);
-            calculateMeanBidAskSpread(stockData);
-            calculateMedianBidAskSpread(stockData);
-            analyzeRoundNumberEffect(stockData);
-            System.out.println();
+            calculateMeanTimeBetweenTrades(stockCode, stockData);
+            calculateMedianTimeBetweenTrades(stockCode, stockData);
+            calculateLongestTimeBetweenTrades(stockCode, stockData);
+            calculateMeanTimeBetweenTickChanges(stockCode, stockData);
+            calculateMedianTimeBetweenTickChanges(stockCode, stockData);
+            calculateLongestTimeBetweenTickChanges(stockCode, stockData);
+            calculateMeanBidAskSpread(stockCode, stockData);
+            calculateMedianBidAskSpread(stockCode, stockData);
+            analyzeRoundNumberEffect(stockCode, stockData);
         }
+
+        // Correct file path to store the output in analysis.csv
+        writeMetricsToCSV("../analysis.csv");
     }
 
-    private void calculateMeanTimeBetweenTrades(List<StockData> data) {
+    private void calculateMeanTimeBetweenTrades(String stockCode, List<StockData> data) {
+        // function to calculate Mean Time Between Trades
         List<StockData> trades = data.stream()
                 .filter(d -> d.getUpdateType() == 1)
                 .sorted(Comparator.comparing(StockData::getDate)
@@ -64,14 +78,18 @@ public class MetricsService {
         List<Double> timeDifferences = new ArrayList<>();
         for (int i = 1; i < trades.size(); i++) {
             Double timeDifference = trades.get(i).getTimeInSecondsPastMidnight() - trades.get(i - 1).getTimeInSecondsPastMidnight();
-            timeDifferences.add(timeDifference);
+            // System.out.println(data.get(i).getTimeInSecondsPastMidnight()+ " " + data.get(i-1).getTimeInSecondsPastMidnight()+ " " + timeDifference);
+            if(timeDifference > 0.0){
+                timeDifferences.add(timeDifference);
+            }
         }
 
         double meanTimeBetweenTrades = timeDifferences.stream().mapToDouble(Double::doubleValue).average().orElse(0);
-        System.out.println("Mean Time Between Trades: " + meanTimeBetweenTrades);
+        metricsData.add(new String[]{stockCode, "Mean Time Between Trades", String.valueOf(meanTimeBetweenTrades)});
     }
 
-    private void calculateMedianTimeBetweenTrades(List<StockData> data) {
+    private void calculateMedianTimeBetweenTrades(String stockCode, List<StockData> data) {
+        // function to calculate Median Time Between Trades
         List<StockData> trades = data.stream()
                 .filter(d -> d.getUpdateType() == 1)
                 .sorted(Comparator.comparing(StockData::getDate)
@@ -81,14 +99,17 @@ public class MetricsService {
         List<Double> timeDifferences = new ArrayList<>();
         for (int i = 1; i < trades.size(); i++) {
             Double timeDifference = trades.get(i).getTimeInSecondsPastMidnight() - trades.get(i - 1).getTimeInSecondsPastMidnight();
-            timeDifferences.add(timeDifference);
+            if(timeDifference > 0.0){
+                timeDifferences.add(timeDifference);
+            }
         }
 
         double medianTimeBetweenTrades = calculateMedianDouble(timeDifferences);
-        System.out.println("Median Time Between Trades: " + medianTimeBetweenTrades);
+        metricsData.add(new String[]{stockCode, "Median Time Between Trades", String.valueOf(medianTimeBetweenTrades)});
     }
 
-    private void calculateLongestTimeBetweenTrades(List<StockData> data) {
+    private void calculateLongestTimeBetweenTrades(String stockCode, List<StockData> data) {
+        // function to calculate Longest Time Between Trades
         List<StockData> trades = data.stream()
                 .filter(d -> d.getUpdateType() == 1)
                 .sorted(Comparator.comparing(StockData::getDate)
@@ -98,67 +119,85 @@ public class MetricsService {
         List<Double> timeDifferences = new ArrayList<>();
         for (int i = 1; i < trades.size(); i++) {
             double timeDifference = trades.get(i).getTimeInSecondsPastMidnight() - trades.get(i - 1).getTimeInSecondsPastMidnight();
-            timeDifferences.add(timeDifference);
+            if(timeDifference > 0.0){
+                timeDifferences.add(timeDifference);
+            }
         }
 
         double longestTimeBetweenTrades = timeDifferences.stream().mapToDouble(Double::doubleValue).max().orElse(0);
-        System.out.println("Longest Time Between Trades: " + longestTimeBetweenTrades);
+        metricsData.add(new String[]{stockCode, "Longest Time Between Trades", String.valueOf(longestTimeBetweenTrades)});
     }
 
-    private void calculateMeanTimeBetweenTickChanges(List<StockData> data) {
+    private void calculateMeanTimeBetweenTickChanges(String stockCode, List<StockData> data) {
+        // function to calculate Mean Time Between Tick Changes
         List<Double> timeDifferences = new ArrayList<>();
         for (int i = 1; i < data.size(); i++) {
-            double timeDifference = data.get(i).getTimeInSecondsPastMidnight() - data.get(i - 1).getTimeInSecondsPastMidnight();
-            timeDifferences.add(timeDifference);
+            if(Math.abs(data.get(i).getTradePrice() - data.get(i-1).getTradePrice()) >= 0.1){
+                double timeDifference = data.get(i).getTimeInSecondsPastMidnight() - data.get(i - 1).getTimeInSecondsPastMidnight();
+                if(timeDifference > 0.0){
+                    timeDifferences.add(timeDifference);
+                }
+            }
         }
 
         double meanTimeBetweenTickChanges = timeDifferences.stream().mapToDouble(Double::doubleValue).average().orElse(0);
-        System.out.println("Mean Time Between Tick Changes: " + meanTimeBetweenTickChanges);
+        metricsData.add(new String[]{stockCode, "Mean Time Between Tick Changes", String.valueOf(meanTimeBetweenTickChanges)});
     }
 
-    private void calculateMedianTimeBetweenTickChanges(List<StockData> data) {
+    private void calculateMedianTimeBetweenTickChanges(String stockCode, List<StockData> data) {
+        // function to calculate Median Time Between Tick Changes
         List<Double> timeDifferences = new ArrayList<>();
         for (int i = 1; i < data.size(); i++) {
-            double timeDifference = data.get(i).getTimeInSecondsPastMidnight() - data.get(i - 1).getTimeInSecondsPastMidnight();
-            timeDifferences.add(timeDifference);
+            if(Math.abs(data.get(i).getTradePrice() - data.get(i-1).getTradePrice()) >= 0.1){
+                double timeDifference = data.get(i).getTimeInSecondsPastMidnight() - data.get(i - 1).getTimeInSecondsPastMidnight();
+                if(timeDifference > 0.0){
+                    timeDifferences.add(timeDifference);
+                }
+            }
         }
 
         double medianTimeBetweenTickChanges = calculateMedianDouble(timeDifferences);
-        System.out.println("Median Time Between Tick Changes: " + medianTimeBetweenTickChanges);
+        metricsData.add(new String[]{stockCode, "Median Time Between Tick Changes", String.valueOf(medianTimeBetweenTickChanges)});
     }
 
-    private void calculateLongestTimeBetweenTickChanges(List<StockData> data) {
+    private void calculateLongestTimeBetweenTickChanges(String stockCode, List<StockData> data) {
+        // function to calculate Longest Time Between Tick Changes
         List<Double> timeDifferences = new ArrayList<>();
         for (int i = 1; i < data.size(); i++) {
-            double timeDifference = data.get(i).getTimeInSecondsPastMidnight() - data.get(i - 1).getTimeInSecondsPastMidnight();
-            timeDifferences.add(timeDifference);
+            if(Math.abs(data.get(i).getTradePrice() - data.get(i-1).getTradePrice()) >= 0.1){
+                double timeDifference = data.get(i).getTimeInSecondsPastMidnight() - data.get(i - 1).getTimeInSecondsPastMidnight();
+                timeDifferences.add(timeDifference);
+            }
         }
 
         double longestTimeBetweenTickChanges = timeDifferences.stream().mapToDouble(Double::doubleValue).max().orElse(0);
-        System.out.println("Longest Time Between Tick Changes: " + longestTimeBetweenTickChanges);
+        metricsData.add(new String[]{stockCode, "Longest Time Between Tick Changes", String.valueOf(longestTimeBetweenTickChanges)});
     }
 
-    private void calculateMeanBidAskSpread(List<StockData> data) {
+    private void calculateMeanBidAskSpread(String stockCode, List<StockData> data) {
+        // function to calculate Mean Bid Ask Spread
         List<Double> spreads = data.stream()
                 .filter(d -> d.getBidPrice() > 0 && d.getAskPrice() > 0)
                 .map(d -> d.getAskPrice() - d.getBidPrice())
                 .collect(Collectors.toList());
 
         double meanBidAskSpread = spreads.stream().mapToDouble(Double::doubleValue).average().orElse(0);
-        System.out.println("Mean Bid-Ask Spread: " + meanBidAskSpread);
+        metricsData.add(new String[]{stockCode, "Mean Bid-Ask Spread", String.valueOf(meanBidAskSpread)});
     }
 
-    private void calculateMedianBidAskSpread(List<StockData> data) {
+    private void calculateMedianBidAskSpread(String stockCode, List<StockData> data) {
+        // function to calculate Median Bid Ask Spread
         List<Double> spreads = data.stream()
                 .filter(d -> d.getBidPrice() > 0 && d.getAskPrice() > 0)
                 .map(d -> d.getAskPrice() - d.getBidPrice())
                 .collect(Collectors.toList());
 
         double medianBidAskSpread = calculateMedianDouble(spreads);
-        System.out.println("Median Bid-Ask Spread: " + medianBidAskSpread);
+        metricsData.add(new String[]{stockCode, "Median Bid-Ask Spread", String.valueOf(medianBidAskSpread)});
     }
 
-    private void analyzeRoundNumberEffect(List<StockData> data) {
+    private void analyzeRoundNumberEffect(String stockCode, List<StockData> data) {
+        // function to analyze Round Number Effect
         long roundNumberTrades = data.stream()
                 .filter(d -> d.getUpdateType() == 1)
                 .filter(d -> d.getTradePrice() % 10 == 0)
@@ -169,7 +208,7 @@ public class MetricsService {
                 .count();
 
         double roundNumberTradePercentage = ((double) roundNumberTrades / totalTrades) * 100;
-        System.out.println("Round Number Effect in Trade Prices: " + roundNumberTradePercentage + "%");
+        metricsData.add(new String[]{stockCode, "Round Number Effect in Trade Prices", roundNumberTradePercentage + "%"});
 
         long roundNumberVolumes = data.stream()
                 .filter(d -> d.getUpdateType() == 1)
@@ -181,10 +220,11 @@ public class MetricsService {
                 .count();
 
         double roundNumberVolumePercentage = ((double) roundNumberVolumes / totalVolumes) * 100;
-        System.out.println("Round Number Effect in Trade Volumes: " + roundNumberVolumePercentage + "%");
+        metricsData.add(new String[]{stockCode, "Round Number Effect in Trade Volumes", roundNumberVolumePercentage + "%"});
     }
 
     private double calculateMedianDouble(List<Double> values) {
+        // function to calculate the Median value given a list of (double) values
         int size = values.size();
         if (size == 0) {
             return 0;
@@ -193,7 +233,19 @@ public class MetricsService {
         if (size % 2 == 1) {
             return sortedValues.get(size / 2);
         } else {
-            return (sortedValues.get(size / 2 - 1) + sortedValues.get(size / 2)) / 2.0;
+            return (sortedValues.get((size / 2) - 1) + sortedValues.get(size / 2)) / 2.0;
+        }
+    }
+
+    /**
+     * Writes the metrics data to a CSV file.
+     *
+     * @param outputPath The path to the output CSV file.
+     * @throws IOException If there is an issue writing to the file.
+     */
+    private void writeMetricsToCSV(String outputPath) throws IOException {
+        try (CSVWriter writer = new CSVWriter(new FileWriter(outputPath))) {
+            writer.writeAll(metricsData);
         }
     }
 }

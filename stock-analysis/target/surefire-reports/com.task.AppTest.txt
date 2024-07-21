@@ -1,4 +1,4 @@
 -------------------------------------------------------------------------------
 Test set: com.task.AppTest
 -------------------------------------------------------------------------------
-Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 98.992 s - in com.task.AppTest
+Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 94.869 s - in com.task.AppTest
